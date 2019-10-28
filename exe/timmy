@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require 'timmy'
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: [COMMAND] | timmy"
+end.parse!
+
+Timmy::ConfigLoader.load()
+Timmy::Timer.new().consume_stdin()

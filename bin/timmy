@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require 'timmy'
+
+options = {
+  replay: nil,
+  profile: false
+}
+
+OptionParser.new do |parser|
+  parser.banner = "Usage: [COMMAND] | timmy"
+  parser.separator ""
+  parser.separator "Options:"
+  parser.on("-r LOG", "--replay LOG", "Replay specific log file") do |replay|
+    options[:replay] = replay
+  end
+  parser.on("-p", "--profile", "Profile targeted timers ") do |profile|
+    options[:profile] = profile
+  end
+end.parse!
+
+Timmy::ConfigLoader.load
+Timmy::Logger.clear
+
+if replay = options[:replay]
+  Timmy::Runner.replay_log(replay)
+else
+  Timmy::Runner.consume_stdin
+end
+
+if options[:profile]
+  Timmy::TargetedTimer.put_stopped_profiles
+end

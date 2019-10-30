@@ -26,7 +26,7 @@ Entire output from command, including time annotations, will be written to a log
 
 You can reprint log from previous session via:
 
-    timmy -r /tmp/timmy-1572347993+235.log
+    timmy --replay /tmp/timmy-1572347993+235.log
 
 Currently passed options and targeted timers will be applied to the output just like the command would've been executed with them in the first place.
 
@@ -34,11 +34,11 @@ Currently passed options and targeted timers will be applied to the output just 
 
 You can present a list of slowest targeted timers after the command ends via:
 
-    docker build . | timmy -p
+    docker build . | timmy --profile
 
 Or by replaying previous session:
 
-    timmy -p -r /tmp/timmy-1572347993+235.log
+    timmy --replay /tmp/timmy-1572347993+235.log --profile
 
 ### Targeted timers
 
@@ -51,6 +51,14 @@ For example, there's a built-in support provided for `docker build` which means 
 
 You can add your own targeted timers via the configuration file.
 
+### Options
+
+Learn more about the tool usage and command line options available:
+
+    timmy --help
+
+Note that command line options ovverride relevant calls in a configuration file.
+
 ## Configuration
 
 You can add your own timers or adjust logging behavior by creating `~/.timmy.rb`.
@@ -61,14 +69,22 @@ Here's a complete example of such file:
 # save logs to different directory (default: "/tmp")
 Timmy::Logger.set_output_directory("~/.timmy_log")
 
-# change the precision used when printing time in logs (default: 0)
+# change the precision used when printing time (default: 0)
 Timmy::Logger.set_precision(1)
 
-# define custom targeted timer (based on default :docker_build timer)
+# redefine / modify the default :docker_build timer
 Timmy::TargetedTimerDefinition.add(:docker_build,
   start_regex: /Step \d+\/\d+ : (?<label>.*)$/,
   stop_regex: / ---> [0-9a-f]{12}$/)
 
-# define custom targeted timer (no label, no stop_regex)
-Timmy::TargetedTimerDefinition.add(:misc, start_regex: / --- /)
+# define custom timer with no label and no stop_regex
+Timmy::TargetedTimerDefinition.add(:simple, start_regex: / --- /)
+
+# define custom timer that groups timers by service names from `docker-compose logs`
+Timmy::TargetedTimerDefinition.add(:grouped,
+  start_regex: /((?<group>[\w\-]+) +\| )?Begin (?<label>.*)$/,
+  stop_regex: /((?<group>[\w\-]+) +\| )?End$/)
+
+# delete the default :docker_build timer
+Timmy::TargetedTimerDefinition.delete(:docker_build)
 ```

@@ -2,7 +2,12 @@ module Timmy
   class TargetedTimerDefinition
     class << self
       def add(id, start_regex:, stop_regex: nil)
+        delete(id)
         all.push(self.new(id, start_regex: start_regex, stop_regex: stop_regex))
+      end
+
+      def delete(id)
+        all.reject! { |definition| definition.id == id }
       end
 
       def all

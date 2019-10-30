@@ -9,7 +9,6 @@ Gem::Specification.new do |spec|
   spec.email         = ["ksluszniak@gmail.com"]
 
   spec.summary       = "Time execution of commands and their stages based on console output"
-  spec.description   = "A simple command line tool that allows to measure how much time an arbitrary command spends on each stage of execution by annotating the command output with timestamps as well as running command-specific targeted timers."
   spec.homepage      = "https://github.com/karolsluszniak/timmy"
   spec.license       = "MIT"
 

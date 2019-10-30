@@ -2,7 +2,9 @@
 
 **Time execution of commands and their stages based on console output.**
 
-A simple command line tool that allows to measure how much time an arbitrary command spends on each stage of execution by annotating the command output with timestamps as well as running command-specific targeted timers.
+Measure how much time an arbitrary command spends on each stage of execution by annotating the command output with timestamps as well as running command-specific targeted timers. Profile slowest stages. Save and replay each session (for benchmarking purposes).
+
+Tool is named after an unfortunate character from the *Giants: Citizen Kabuto* game who happened to be in the wrong place at the wrong time (learn more: [EN](https://www.youtube.com/watch?v=4Sh_VuxYqBY) / [PL](https://www.youtube.com/watch?v=hoVxsSvEpOo)).
 
 ## Installation
 
@@ -16,29 +18,35 @@ Install the gem as a global executable:
 
 Pipe the output from any command, e.g. from `docker build`:
 
-    docker build . | timmy
+```sh
+docker build . | timmy
+```
 
-Each line of the command output will be prefixed by total time elapsed since it has started.
+Each line of the command output will be prefixed by total time elapsed since it has started. You can set the precision used when printing that time:
 
-Entire output from command, including time annotations, will be written to a log file in `/tmp` for future reference (i.e. during benchmarking).
+```sh
+docker build . | timmy --precision 1
+```
 
-### Replay log
+Entire output from command, including time annotations, will be written to a log file in `/tmp` so that the session can be replayed.
 
-You can reprint log from previous session via:
+### Replay session
 
-    timmy --replay /tmp/timmy-1572347993+235.log
+You can replay previous session via:
+
+```sh
+cat /tmp/timmy-1572347993+235.log | timmy
+```
 
 Currently passed options and targeted timers will be applied to the output just like the command would've been executed with them in the first place.
 
-### Profile
+By default the session will be replayed as fast as possible, but it's possible to simulate the actual time flow via:
 
-You can present a list of slowest targeted timers after the command ends via:
-
-    docker build . | timmy --profile
-
-Or by replaying previous session:
-
-    timmy --replay /tmp/timmy-1572347993+235.log --profile
+```sh
+cat /tmp/timmy-1572347993+235.log | timmy --replay-speed 1    # original speed
+cat /tmp/timmy-1572347993+235.log | timmy --replay-speed 0.5  # 2x slower
+cat /tmp/timmy-1572347993+235.log | timmy --replay-speed 10   # 10x faster
+```
 
 ### Targeted timers
 
@@ -51,13 +59,24 @@ For example, there's a built-in support provided for `docker build` which means 
 
 You can add your own targeted timers via the configuration file.
 
+### Profile
+
+You can present a list of slowest targeted timers after the command ends via:
+
+```sh
+docker build . | timmy --profile
+cat /tmp/timmy-1572347993+235.log | timmy --profile
+```
+
 ### Options
 
 Learn more about the tool usage and command line options available:
 
-    timmy --help
+```sh
+timmy --help
+```
 
-Note that command line options ovverride relevant calls in a configuration file.
+Note that command line options will ovverride relevant calls in a configuration file.
 
 ## Configuration
 
@@ -66,25 +85,33 @@ You can add your own timers or adjust logging behavior by creating `~/.timmy.rb`
 Here's a complete example of such file:
 
 ```ruby
-# save logs to different directory (default: "/tmp")
-Timmy::Logger.set_output_directory("~/.timmy_log")
+Timmy.configure do |config|
+  # Profile slowest targeted timers (default: false)
+  config.set_profile(true)
 
-# change the precision used when printing time (default: 0)
-Timmy::Logger.set_precision(1)
+  # Save logs to different directory (default: "/tmp")
+  config.set_logger_output_dir("~")
 
-# redefine / modify the default :docker_build timer
-Timmy::TargetedTimerDefinition.add(:docker_build,
-  start_regex: /Step \d+\/\d+ : (?<label>.*)$/,
-  stop_regex: / ---> [0-9a-f]{12}$/)
+  # Set precision used when printing time (default: 0)
+  config.set_precision(1)
 
-# define custom timer with no label and no stop_regex
-Timmy::TargetedTimerDefinition.add(:simple, start_regex: / --- /)
+  # Replay with given speed (default: instant)
+  config.set_replay_speed(1.0)
 
-# define custom timer that groups timers by service names from `docker-compose logs`
-Timmy::TargetedTimerDefinition.add(:grouped,
-  start_regex: /((?<group>[\w\-]+) +\| )?Begin (?<label>.*)$/,
-  stop_regex: /((?<group>[\w\-]+) +\| )?End$/)
+  # Redefine the default :docker_build timer (original regexes below)
+  config.add_timer(:docker_build,
+    start_regex: /Step \d+\/\d+ : (?<label>.*)$/,
+    stop_regex: / ---> [0-9a-f]{12}$/)
 
-# delete the default :docker_build timer
-Timmy::TargetedTimerDefinition.delete(:docker_build)
+  # Define custom timer with no label and no stop_regex
+  config.add_timer(:simple, start_regex: /^--- /)
+
+  # Define custom timer that groups timers by service names from `docker-compose logs`
+  config.add_timer(:grouped,
+    start_regex: /((?<group>[\w\-]+) +\| )?Begin (?<label>.*)$/,
+    stop_regex: /((?<group>[\w\-]+) +\| )?End$/)
+
+  # Delete the default :docker_build timer
+  config.delete_timer(:docker_build)
+end
 ```

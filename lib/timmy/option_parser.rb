@@ -2,12 +2,7 @@ module Timmy
   class OptionParser
     class << self
       def parse
-        options = {
-          replay: nil,
-          profile: false,
-          logger_output_directory: nil,
-          logger_precision: nil
-        }
+        opts = {}
 
         ::OptionParser.new do |parser|
           parser.banner = <<-EOS
@@ -19,35 +14,26 @@ Pipe output from arbitrary command:
 
     \e[36m[COMMAND] | timmy [OPTIONS]\e[0m
 
-Run without a pipe (usually with --replay):
+Replay previous session:
 
-    \e[36mtimmy [OPTIONS]\e[0m
+    \e[36mcat [LOGFILE] | timmy [OPTIONS]\e[0m
 EOS
 
           parser.separator ""
           parser.separator "\e[33mOptions:\e[0m"
           parser.separator ""
 
-          parser.on("-r LOG", "--replay LOG", "Replay specific log file") do |replay|
-            options[:replay] = replay
-          end
-
-          parser.on("-p", "--profile", "Profile targeted timers") do |profile|
-            options[:profile] = profile
-          end
-
-          parser.on("--logger-output-dir DIR", "Save logs to different directory (default: \"/tmp\")") do |logger_output_directory|
-            options[:logger_output_directory] = logger_output_directory
-          end
-
-          parser.on("--logger-precision NUM", Integer, "Set precision used when printing time (default: 0)") do |logger_precision|
-            options[:logger_precision] = logger_precision
-          end
+          parser.on("-p", "--precision NUM", Integer,
+            "Set precision used when printing time (default: 0)")
+          parser.on("-r", "--[no-]profile",
+            "Profile slowest targeted timers (default: false)")
+          parser.on("-x", "--replay-speed NUM", Float,
+            "Replay with given speed (default: instant)")
 
           parser.separator ""
-        end.parse!
+        end.parse!(into: opts)
 
-        options
+        opts.map { |key, value| [key.to_s.gsub('-', '_').to_sym, value] }.to_h
       end
     end
   end

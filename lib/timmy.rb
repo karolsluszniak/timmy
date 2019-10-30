@@ -7,3 +7,11 @@ require "timmy/targeted_timer"
 require "timmy/targeted_timer_definition"
 require "timmy/targeted_timer_manager"
 require "timmy/version"
+
+module Timmy
+  module_function
+
+  def configure
+    yield(ConfigLoader.new)
+  end
+end

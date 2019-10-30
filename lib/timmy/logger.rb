@@ -1,12 +1,16 @@
 module Timmy
   class Logger
     class << self
-      def set_output_directory(dir)
-        @output_directory = dir
+      def set_output_dir(dir)
+        @output_dir = File.expand_path(dir)
       end
 
       def set_precision(precision)
         @precision = precision
+      end
+
+      def set_profile(profile)
+        @profile = profile
       end
 
       def put_output(output)
@@ -19,17 +23,38 @@ module Timmy
         @output += sprintf("%.9f %s\n", duration, output)
       end
 
+      def put_eof
+        put_output(feint("EOF"))
+      end
+
       def put_timer(timer)
         puts format_timer(timer)
       end
 
-      def put_stopped_profiles
-        puts "Slowest targeted timers:"
+      def finalize
+        suffix = "#{MasterTimer.start.to_i}+#{MasterTimer.get.to_i}"
+        filename = File.join(output_dir, "timmy-#{suffix}.log")
+        header = sprintf("TIMMY-SESSION:v1:%.9f\n", MasterTimer.start)
 
+        File.write(filename, header + @output)
+
+        puts feint("Log written to #{filename}")
+        puts
+
+        put_profile if profile?
+      end
+
+      private
+
+      def put_profile
         slowest_timers = TargetedTimerManager
           .stopped
           .sort_by { |timer| -timer.duration }
           .slice(0, 10)
+
+        return unless slowest_timers.any?
+
+        puts "Slowest targeted timers:"
 
         slowest_timers.each do |timer|
           put_timer(timer)
@@ -37,18 +62,6 @@ module Timmy
 
         puts
       end
-
-      def finalize
-        suffix = "#{MasterTimer.start.to_i}+#{MasterTimer.get.to_i}"
-        filename = File.join(output_directory, "timmy-#{suffix}.log")
-
-        File.write(filename, @output)
-
-        puts feint("Log written to #{filename}")
-        puts
-      end
-
-      private
 
       def format_timer(timer)
         string = "#{bold(format_duration(timer.duration))} #{format_id(timer.definition.id)}"
@@ -79,12 +92,17 @@ module Timmy
         "\e[0m\e[2m#{string}\e[0m"
       end
 
-      def output_directory
-        @output_directory ||= "/tmp"
+      def output_dir
+        @output_dir ||= "/tmp"
       end
 
       def precision
         @precision ||= 0
+      end
+
+      def profile?
+        @profile = false if @profile == nil
+        @profile
       end
     end
   end

@@ -1,74 +1,82 @@
 module Timmy
   class Runner
     class << self
+      def set_replay_speed(speed)
+        @replay_speed = speed
+      end
+
       def run
         ConfigLoader.load
 
         options = OptionParser.parse
+        replay_speed = options[:replay_speed] || @replay_speed
+        Logger.set_precision(options[:precision]) if options.key?(:precision)
+        Logger.set_profile(options[:profile]) if options.key?(:profile)
 
-        if value = options[:logger_output_directory]
-          Logger.set_output_directory(value)
-        end
-
-        if value = options[:logger_precision]
-          Logger.set_precision(value)
-        end
-
-        if replay = options[:replay]
-          replay_log(replay)
-        else
-          consume_stdin
-        end
-
-        if options[:profile]
-          Logger.put_stopped_profiles
-        end
+        self.new(replay_speed: replay_speed).consume_stdin
       end
+    end
 
-      def consume_stdin
-        around_run_lines do
-          STDIN.each_line do |line|
+    def initialize(replay_speed:)
+      @replay_speed = replay_speed
+      @last_replay_time = 0
+    end
+
+    def consume_stdin
+      around_run_lines do
+        STDIN.each_line do |line|
+          next if init_replay_mode(line)
+
+          if @replay_mode
+            replay_line(line)
+          else
             run_line(line.rstrip)
           end
-          Logger.put_output("EOF")
+        end
+
+        Logger.put_eof unless @replay_mode
+      end
+    end
+
+    private
+
+    def init_replay_mode(line)
+      if @replay_mode == nil
+        if (match = line.match(/^TIMMY-SESSION:v1:(?<s>\d+\.\d{9})$/))
+          MasterTimer.start(match[:s].to_f)
+          @replay_mode = true
+        else
+          @replay_mode = false
         end
       end
+    end
 
-      def replay_log(log)
-        around_run_lines do
-          start_time = File.basename(log).match(/timmy-(?<time>\d+)\+\d+.log/)[:time].to_i
-          MasterTimer.start(start_time)
+    def around_run_lines
+      MasterTimer.start
 
-          File.readlines(log).each do |line|
-            if match = line.match(/^(?<m>\d+):(?<s>\d+(\.\d+)?) \| (?<content>.*)/)
-              line_time = match[:m].to_i * 60 + match[:s].to_f
-              MasterTimer.set(line_time)
-              run_line(match[:content])
-            elsif match = line.match(/^(?<s>\d+(\.\d+)?) (?<content>.*)/)
-              line_time = match[:s].to_f
-              MasterTimer.set(line_time)
-              run_line(match[:content])
-            end
-          end
-        end
-      end
+      yield
 
-      private
+      TargetedTimerManager.stop_all
+      Logger.finalize
+    end
 
-      def around_run_lines
-        MasterTimer.start
+    def replay_line(line)
+      line_match = line.match(/^(?<s>\d+(\.\d+)?) (?<content>.*)/)
+      line_time = line_match[:s].to_f
 
-        yield
+      duration = line_time - @last_replay_time
+      sleep duration / @replay_speed if @replay_speed
+      @last_replay_time = line_time
 
-        TargetedTimerManager.stop_all
-        Logger.finalize
-      end
+      MasterTimer.set(line_time)
 
-      def run_line(line)
-        TargetedTimerManager.start_for_line(line)
-        Logger.put_output(line)
-        TargetedTimerManager.stop_for_line(line)
-      end
+      run_line(line_match[:content])
+    end
+
+    def run_line(line)
+      TargetedTimerManager.start_for_line(line)
+      Logger.put_output(line)
+      TargetedTimerManager.stop_for_line(line)
     end
   end
 end

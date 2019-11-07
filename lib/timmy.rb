@@ -1,3 +1,4 @@
+require "timmy/command_streamer"
 require "timmy/config_loader"
 require "timmy/logger"
 require "timmy/master_timer"

@@ -3,7 +3,7 @@ module Timmy
     class << self
       def start_for_line(line)
         TargetedTimerDefinition.all.each do |definition|
-          if match = line.match(definition.start_regex)
+          if match = match_line(line, definition.start_regex)
             label = get_capture(match, :label)
             group = get_capture(match, :group)
 
@@ -16,7 +16,7 @@ module Timmy
       def stop_for_line(line)
         started.each do |timer|
           if (stop_regex = timer.definition.stop_regex) &&
-             (match = line.match(stop_regex)) &&
+             (match = match_line(line, stop_regex)) &&
              get_capture(match, :group) == timer.group
             stop(timer)
           end
@@ -52,6 +52,10 @@ module Timmy
       end
 
       private
+
+      def match_line(line, regex)
+        line.gsub(/(\x1b\[[0-9;]*m)/, '').match(regex)
+      end
 
       def get_capture(match, name)
         match[name]

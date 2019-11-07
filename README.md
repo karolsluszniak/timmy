@@ -16,10 +16,16 @@ Install the gem as a global executable:
 
 ### Basic example
 
-Pipe the output from any command, e.g. from `docker build`:
+Pipe output from command, e.g. from `docker build`:
 
 ```sh
 docker build . | timmy
+```
+
+Pass command as argument (records STDERR, gives more precise results):
+
+```sh
+timmy docker build .
 ```
 
 Each line of the command output will be prefixed by total time elapsed since it has started. You can set the precision used when printing that time:
@@ -86,22 +92,11 @@ Here's a complete example of such file:
 
 ```ruby
 Timmy.configure do |config|
-  # Profile slowest targeted timers (default: false)
-  config.set_profile(true)
-
-  # Save logs to different directory (default: "/tmp")
-  config.set_logger_output_dir("~")
-
-  # Set precision used when printing time (default: 0)
-  config.set_precision(1)
-
-  # Replay with given speed (default: instant)
-  config.set_replay_speed(1.0)
-
-  # Redefine the default :docker_build timer (original regexes below)
-  config.add_timer(:docker_build,
-    start_regex: /Step \d+\/\d+ : (?<label>.*)$/,
-    stop_regex: / ---> [0-9a-f]{12}$/)
+  config.set_quiet(true)           # Don't print the times (default: false)
+  config.set_profile(true)          # Profile slowest targeted timers (default: false)
+  config.set_logger_output_dir("~") # Save logs to different directory (default: "/tmp")
+  config.set_precision(1)           # Set precision used when printing time (default: 0)
+  config.set_replay_speed(1.0)      # Replay with given speed (default: instant)
 
   # Define custom timer with no label and no stop_regex
   config.add_timer(:simple, start_regex: /^--- /)
@@ -111,7 +106,7 @@ Timmy.configure do |config|
     start_regex: /((?<group>[\w\-]+) +\| )?Begin (?<label>.*)$/,
     stop_regex: /((?<group>[\w\-]+) +\| )?End$/)
 
-  # Delete the default :docker_build timer
+  # Delete the default "docker_build" timer
   config.delete_timer(:docker_build)
 end
 ```

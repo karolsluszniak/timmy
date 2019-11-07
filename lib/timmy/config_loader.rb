@@ -19,6 +19,10 @@ module Timmy
       TargetedTimerDefinition.delete(id)
     end
 
+    def set_quiet(quiet)
+      Logger.set_quiet(quiet)
+    end
+
     def set_precision(precision)
       Logger.set_precision(precision)
     end
